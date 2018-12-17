@@ -36,6 +36,7 @@ lclog <- getLogger('api.linkedcat')
 
 get_papers <- function(query, params, limit=100) {
 
+  hl_flag <- TRUE
 
   lclog$info(paste("Search: ", query, sep=""))
   start.time <- Sys.time()
@@ -46,17 +47,27 @@ get_papers <- function(query, params, limit=100) {
   q_params <- build_query(query, params, limit)
   # do search
   lclog$info(paste("Query:", paste(q_params, collapse = " ")))
-  res <- solr_search(conn, "linkedcat", params = q_params)
+
+  if (hl_flag) {
+    res <- solr_all(conn, "linkedcat", params = q_params)
+  } else {
+    q_params$hl <- 'off'
+    res <- solr_all(conn, "linkedcat", params = q_params)
+  }
 
   if (nrow(res) == 0){
     stop(paste("No results retrieved."))
   }
 
   # make results dataframe
-  metadata <- data.frame(res)
-  # highlights <- data.frame(res$high)
-  # highlights <- ddply(highlights, .(names), summarize, snippets=paste(ocrtext, collapse="\n"))
-  # metadata <- merge(x = metadata, y = highlights, by.x='id', by.y='names')
+  metadata <- data.frame(res$search)
+  if (hl_flag) {
+    highlights <- data.frame(res$high)
+    highlights <- ddply(highlights, .(names), summarize, snippets=paste(ocrtext, collapse="\n"))
+    metadata <- merge(x = metadata, y = highlights, by.x='id', by.y='names')
+  } else {
+    metadata$snippets <- ""
+  }
 
   metadata[is.na(metadata)] <- ""
   metadata$subject <- if (!is.null(metadata$keyword_a)) metadata$keyword_a else ""
@@ -118,10 +129,10 @@ build_query <- function(query, params, limit){
     q_params$fq <- list(pub_year)
   }
   q_params$fq <- unlist(q_params$fq)
-  # q_params$hl <- 'on'
+  q_params$hl <- 'on'
   # q_params$hl.fl <- paste(q_fields, collapse=",")
-  # q_params$hl.fl <- 'ocrtext'
-  # q_params$hl.snippets <- 100
+  q_params$hl.fl <- 'ocrtext'
+  q_params$hl.snippets <- 100
   # end adding filter params
   return(q_params)
 }
