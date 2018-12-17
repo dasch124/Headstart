@@ -55,7 +55,7 @@ get_papers <- function(query, params, limit=100) {
     res <- solr_all(conn, "linkedcat", params = q_params)
   }
 
-  if (nrow(res) == 0){
+  if (nrow(res$search) == 0){
     stop(paste("No results retrieved."))
   }
 
