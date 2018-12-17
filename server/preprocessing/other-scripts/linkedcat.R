@@ -46,17 +46,17 @@ get_papers <- function(query, params, limit=100) {
   q_params <- build_query(query, params, limit)
   # do search
   lclog$info(paste("Query:", paste(q_params, collapse = " ")))
-  res <- solr_all(conn, "linkedcat", params = q_params)
+  res <- solr_search(conn, "linkedcat", params = q_params)
 
-  if (nrow(res$search) == 0){
+  if (nrow(res) == 0){
     stop(paste("No results retrieved."))
   }
 
   # make results dataframe
-  metadata <- data.frame(res$search)
-  highlights <- data.frame(res$high)
-  highlights <- ddply(highlights, .(names), summarize, snippets=paste(ocrtext, collapse="\n"))
-  metadata <- merge(x = metadata, y = highlights, by.x='id', by.y='names')
+  metadata <- data.frame(res)
+  # highlights <- data.frame(res$high)
+  # highlights <- ddply(highlights, .(names), summarize, snippets=paste(ocrtext, collapse="\n"))
+  # metadata <- merge(x = metadata, y = highlights, by.x='id', by.y='names')
 
   metadata[is.na(metadata)] <- ""
   metadata$subject <- if (!is.null(metadata$keyword_a)) metadata$keyword_a else ""
@@ -74,7 +74,7 @@ get_papers <- function(query, params, limit=100) {
   text = data.frame(matrix(nrow=nrow(metadata)))
   text$id = metadata$id
   # Add all keywords, including classification to text
-  text$content = paste(metadata$ocrtext_good,
+  text$content = paste(metadata$main_title, metadata$keyword_a,
                        sep = " ")
 
 
@@ -118,10 +118,10 @@ build_query <- function(query, params, limit){
     q_params$fq <- list(pub_year)
   }
   q_params$fq <- unlist(q_params$fq)
-  q_params$hl <- 'on'
+  # q_params$hl <- 'on'
   # q_params$hl.fl <- paste(q_fields, collapse=",")
-  q_params$hl.fl <- 'ocrtext'
-  q_params$hl.snippets <- 100
+  # q_params$hl.fl <- 'ocrtext'
+  # q_params$hl.snippets <- 100
   # end adding filter params
   return(q_params)
 }
